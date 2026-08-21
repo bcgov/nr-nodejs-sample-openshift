@@ -1,0 +1,100 @@
+global:
+  name: "knox-provision"
+  vaultAddress: "https://knox.io.nrs.gov.bc.ca"
+  brokerAddress: "https://broker.io.nrs.gov.bc.ca"
+
+image:
+  registry: "artifacts.developer.gov.bc.ca/github-docker-remote/"
+  repository: "bcgov/nr-broker-credential-injection/intention-provision-secret"
+  tag: "4.0.0"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+cron:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  backoffLimit: 1
+  restartPolicy: OnFailure
+  podAnnotations: {}
+  podLabels: {}
+  resources: {}
+
+sourceSecret:
+  name: "knox-secret"
+  brokerTokenKey: "token"
+  vaultRoleIdKey: "role_id"
+
+targetSecret:
+  name: "knox-secret"
+  brokerTokenKey: "token"
+  vaultRoleIdKey: "role_id"
+  vaultSecretIdKey: "secret_id"
+
+intention:
+  event:
+    url: "https://console.apps.gold.devops.gov.bc.ca/"
+  action:
+    name: "package-provision"
+    id: "provision"
+    provision:
+      - "approle/secret-id"
+  service:
+    name: "nodejs-sample"
+    project: "oscar-example"
+    environment: "development"
+  user:
+    name: "gruan@azureidir"
+
+serviceAccount:
+  create: true
+  name: ""
+
+rbac:
+  create: true
+
+networkPolicy:
+  create: false
+  # egress: A list of egress rules, each with `cidr` and optional `ports`.
+  # Example:
+  #   egress:
+  #     - cidr: 10.0.0.0/24
+  #       ports:
+  #         - protocol: TCP
+  #           port: 443
+  egress: []
+# Secret Sync Configuration
+# Enables a Job that syncs Vault secrets to OpenShift secrets after the CronJob runs
+sync:
+  # Enable or disable the sync job
+  enabled: false
+
+  # Schedule for the sync job (cron expression)
+  # Set to empty string to run as a one-time Job (not CronJob)
+  schedule: "30 2 * * *"
+
+  # Vault secret paths to read (comma-separated)
+  # Example: "secret/data/app-config,secret/data/db-credentials"
+  vaultPaths: "apps/data/dev/oscar-example/nodejs-sample/development"
+
+  # OpenShift secret names to create/update (comma-separated, must match vaultPaths count)
+  # Example: "app-config-secret,db-credentials-secret"
+  secretNames: "app-nodejs-sample-secret"
+
+  # Source secret containing AppRole credentials (for login)
+  #sourceSecret:
+  #  name: "knox-secret"
+  #  vaultRoleIdKey: "role_id"
+  #  vaultSecretIdKey: "secret_id"
+
+  # Sync job configuration
+  job:
+    concurrencyPolicy: Forbid
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    backoffLimit: 4
+    restartPolicy: OnFailure
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
