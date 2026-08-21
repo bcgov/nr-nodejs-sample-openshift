@@ -29,4 +29,4 @@ HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/api
 
 # Nonroot user; Node 24 automatically respects cgroup memory limits
 USER nonroot
-CMD ["/app/dist/main"]
+CMD ["/app/dist/src/main.js"]
