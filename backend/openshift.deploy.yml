@@ -39,7 +39,7 @@ parameters:
     value: "info"
   - name: VAULT_IMAGE
     description: Image providing the Vault Agent binary
-    value: docker.io/hashicorp/vault:1.20.4
+    value: docker.io/hashicorp/vault:2.0.4
   - name: VAULT_ADDR
     description: Vault (Knox) API address
     value: https://knox.io.nrs.gov.bc.ca
