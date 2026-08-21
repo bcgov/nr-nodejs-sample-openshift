@@ -6,7 +6,7 @@ global:
 image:
   registry: "artifacts.developer.gov.bc.ca/github-docker-remote/"
   repository: "bcgov/nr-broker-credential-injection/intention-provision-secret"
-  tag: "4.0.0"
+  tag: "v4.0.0"
   pullPolicy: IfNotPresent
   pullSecrets: []
 
