@@ -1,6 +1,5 @@
 import { vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 import Dashboard from '@/components/Dashboard'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -8,25 +7,17 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 describe('Dashboard', () => {
-  test('renders a heading with the correct text', () => {
+  test('renders the hello world greeting', async () => {
     render(<Dashboard />)
-    expect(screen.getByText(/Employee ID/i)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Hello World!' })).toBeInTheDocument()
   })
 
-  test('opens and closes the row details modal', async () => {
-    const user = userEvent.setup()
+  test('renders metadata for the injected secrets', async () => {
     render(<Dashboard />)
 
-    // Wait for the mocked user data to load and render the View Details button.
-    const viewDetailsButton = await screen.findByRole('button', { name: /view details/i })
-    await user.click(viewDetailsButton)
-
-    expect(screen.getByText(/Row Details/i)).toBeInTheDocument()
-
-    const closeButtons = screen.getAllByRole('button', { name: 'Close' })
-    await user.click(closeButtons.at(-1)!)
-    await waitFor(() => {
-      expect(screen.queryByText(/Row Details/i)).not.toBeInTheDocument()
-    })
+    expect(await screen.findByText('Secret Key')).toBeInTheDocument()
+    expect(await screen.findByText('SAMPLE_API_KEY')).toBeInTheDocument()
+    expect(screen.getByText('a1b2c3d4')).toBeInTheDocument()
+    expect(screen.getByText('apps/dev/oscar-example/nodejs-sample/sample')).toBeInTheDocument()
   })
 })

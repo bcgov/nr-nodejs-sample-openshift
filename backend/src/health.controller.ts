@@ -1,20 +1,11 @@
 import { Controller, Get } from '@nestjs/common'
-import { HealthCheck, HealthCheckService, PrismaHealthIndicator } from '@nestjs/terminus'
-import { PrismaService } from './prisma.service'
-import type { PrismaClient } from '../generated/prisma/client.js'
+
 @Controller('health')
 export class HealthController {
-  constructor(
-    private health: HealthCheckService,
-    private prisma: PrismaHealthIndicator,
-    private readonly prismaService: PrismaService,
-  ) {}
-
   @Get()
-  @HealthCheck()
   check() {
-    return this.health.check([
-      () => this.prisma.pingCheck('prisma', this.prismaService as unknown as PrismaClient),
-    ])
+    // Intentionally independent of Vault: a render failure should show up on
+    // /api/v1/secrets rather than silently pulling the pod out of rotation.
+    return { status: 'ok', uptime: process.uptime() }
   }
 }

@@ -6,8 +6,11 @@ describe('CustomLogger', () => {
   })
 
   it('should log a message', () => {
-    const spy = vi.spyOn(customLogger, 'verbose')
-    customLogger.verbose('Test message')
+    const logger = customLogger as typeof customLogger & {
+      verbose: (...args: unknown[]) => unknown
+    }
+    const spy = vi.spyOn(logger, 'verbose')
+    logger.verbose('Test message')
     expect(spy).toHaveBeenCalledWith('Test message')
     spy.mockRestore()
   })

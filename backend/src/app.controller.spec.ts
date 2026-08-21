@@ -16,8 +16,8 @@ describe('AppController', () => {
   })
 
   describe('root', () => {
-    it('should return "Backend is live!"', () => {
-      expect(appController.getHello()).toBe('Backend is live!')
+    it('should return "Hello World!"', () => {
+      expect(appController.getHello()).toBe('Hello World!')
     })
   })
 })

@@ -20,13 +20,13 @@ parameters:
     description: Organization name
     value: bcgov
   - name: DOMAIN
-    value: apps.silver.devops.gov.bc.ca
+    value: apps.gold.devops.gov.bc.ca
   - name: MIN_REPLICAS
     description: The minimum amount of replicas for the horizontal pod autoscaler.
-    value: "2"
+    value: "1"
   - name: MAX_REPLICAS
     description: The maximum amount of replicas for the horizontal pod autoscaler.
-    value: "5"
+    value: "1"
   - name: CPU_REQUEST
     value: "50m"
   - name: MEMORY_REQUEST
@@ -38,6 +38,23 @@ parameters:
     description: Caddy log level (debug|info|warn|error)
     value: "info"
 objects:
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      labels:
+        app: ${NAME}-${ZONE}
+      name: ${NAME}-${ZONE}-${COMPONENT}-ingress
+    spec:
+      podSelector:
+        matchLabels:
+          deployment: ${NAME}-${ZONE}-${COMPONENT}
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      policyTypes:
+        - Ingress
   - apiVersion: apps/v1
     kind: Deployment
     metadata:

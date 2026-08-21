@@ -20,13 +20,13 @@ parameters:
     description: Organization name
     value: bcgov
   - name: DOMAIN
-    value: apps.silver.devops.gov.bc.ca
+    value: apps.gold.devops.gov.bc.ca
   - name: MIN_REPLICAS
     description: The minimum amount of replicas for the horizontal pod autoscaler.
-    value: "2"
+    value: "1"
   - name: MAX_REPLICAS
     description: The maximum amount of replicas for the horizontal pod autoscaler.
-    value: "5"
+    value: "1"
   - name: CPU_REQUEST
     value: "100m"
   - name: MEMORY_REQUEST
@@ -37,7 +37,88 @@ parameters:
   - name: LOG_LEVEL
     description: Application log level (debug|info|warn|error)
     value: "info"
+  - name: VAULT_IMAGE
+    description: Image providing the Vault Agent binary
+    value: docker.io/hashicorp/vault:1.20.4
+  - name: VAULT_ADDR
+    description: Vault (Knox) API address
+    value: https://knox.io.nrs.gov.bc.ca
+  - name: VAULT_AUTH_PATH
+    description: AppRole auth mount used by the service login
+    value: auth/vs_apps_approle
+  - name: VAULT_MOUNT
+    description: KV v2 secret engine mount
+    value: apps
+  - name: VAULT_SECRET_PATH
+    description: KV v2 path within the mount, without the "data" segment
+    value: dev/oscar-example/nodejs-sample/proxy-account-ready-only
+  - name: VAULT_APPROLE_SECRET
+    description: >-
+      Secret holding the AppRole login, pre-provisioned and rotated by the
+      NR Broker provision-secret CronJob. Never created by this template.
+    value: knox-secret
+  - name: VAULT_ROLE_ID_KEY
+    value: role_id
+  - name: VAULT_SECRET_ID_KEY
+    value: secret_id
 objects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      labels:
+        app: ${NAME}-${ZONE}
+      name: ${NAME}-${ZONE}-${COMPONENT}-vault-agent
+    data:
+      agent.hcl: |-
+        pid_file = "/vault/agent/pid"
+
+        vault {
+          address = "${VAULT_ADDR}"
+          retry {
+            num_retries = 5
+          }
+        }
+
+        auto_auth {
+          method "approle" {
+            mount_path = "${VAULT_AUTH_PATH}"
+            config = {
+              role_id_file_path                   = "/vault/approle/${VAULT_ROLE_ID_KEY}"
+              secret_id_file_path                 = "/vault/approle/${VAULT_SECRET_ID_KEY}"
+              remove_secret_id_file_after_reading = false
+            }
+          }
+
+          # No token sink: the app only ever sees rendered secrets, not a token.
+        }
+
+        template {
+          destination = "/vault/secrets/app.json"
+          perms       = "0400"
+          contents    = <<-EOT
+            {{- with secret "${VAULT_MOUNT}/data/${VAULT_SECRET_PATH}" -}}
+            {{ .Data.data | toJSON }}
+            {{- end -}}
+          EOT
+        }
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      labels:
+        app: ${NAME}-${ZONE}
+      name: ${NAME}-${ZONE}-${COMPONENT}-ingress
+    spec:
+      podSelector:
+        matchLabels:
+          deployment: ${NAME}-${ZONE}-${COMPONENT}
+      ingress:
+        - from:
+            - podSelector:
+                matchLabels:
+                  app: ${NAME}-${ZONE}
+                  deployment: ${NAME}-${ZONE}-frontend
+      policyTypes:
+        - Ingress
   - apiVersion: apps/v1
     kind: Deployment
     metadata:
@@ -69,66 +150,20 @@ objects:
                       matchLabels:
                         deployment: ${NAME}-${ZONE}-${COMPONENT}
                     topologyKey: kubernetes.io/hostname
-          initContainers:
-            - name: wait-for-db
-              image: ${REGISTRY}/${ORG_NAME}/${NAME}/migrations:${IMAGE_TAG}
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  echo "Waiting for database to be reachable..."
-                  max_retries=30
-                  attempt=1
-                  until nc -z -v -w3 ${NAME}-${ZONE}-database 5432; do
-                    if [ "$attempt" -ge "$max_retries" ]; then
-                      echo "ERROR: Database ${NAME}-${ZONE}-database:5432 is not reachable after ${max_retries} attempts." >&2
-                      exit 1
-                    fi
-                    echo "Database not ready (attempt ${attempt}/${max_retries}), sleeping..."
-                    attempt=$((attempt + 1))
-                    sleep 2
-                  done
-                  echo "Database is UP!"
-              securityContext:
-                allowPrivilegeEscalation: false
-                runAsNonRoot: true
-                readOnlyRootFilesystem: true
-                capabilities:
-                  drop: ["ALL"]
-                seccompProfile:
-                  type: RuntimeDefault
-              volumeMounts:
-                - name: tmp
-                  mountPath: /tmp
-            - name: migrations
-              image: ${REGISTRY}/${ORG_NAME}/${NAME}/migrations:${IMAGE_TAG}
-              imagePullPolicy: Always
+          containers:
+            - name: vault-agent
+              image: ${VAULT_IMAGE}
+              imagePullPolicy: IfNotPresent
+              command: ["vault", "agent", "-config=/vault/config/agent.hcl"]
               env:
-                - name: POSTGRES_DATABASE
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${NAME}-${ZONE}-database
-                      key: database-name
-                - name: FLYWAY_URL
-                  value: jdbc:postgresql://${NAME}-${ZONE}-database:5432/$(POSTGRES_DATABASE)
-                - name: FLYWAY_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${NAME}-${ZONE}-database
-                      key: database-user
-                - name: FLYWAY_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${NAME}-${ZONE}-database
-                      key: database-password
-                - name: FLYWAY_DEFAULT_SCHEMA
-                  value: "users"
-                - name: FLYWAY_BASELINE_ON_MIGRATE
-                  value: "true"
+                - name: HOME
+                  value: /vault/agent
+                - name: VAULT_ADDR
+                  value: ${VAULT_ADDR}
               resources:
                 requests:
                   cpu: 10m
-                  memory: 50Mi
+                  memory: 64Mi
               securityContext:
                 allowPrivilegeEscalation: false
                 runAsNonRoot: true
@@ -138,9 +173,16 @@ objects:
                 seccompProfile:
                   type: RuntimeDefault
               volumeMounts:
-                - name: tmp
-                  mountPath: /tmp
-          containers:
+                - name: vault-config
+                  mountPath: /vault/config
+                  readOnly: true
+                - name: vault-approle
+                  mountPath: /vault/approle
+                  readOnly: true
+                - name: vault-secrets
+                  mountPath: /vault/secrets
+                - name: vault-agent
+                  mountPath: /vault/agent
             - name: ${NAME}
               image: ${REGISTRY}/${ORG_NAME}/${NAME}/${COMPONENT}:${IMAGE_TAG}
               imagePullPolicy: Always
@@ -150,27 +192,10 @@ objects:
               env:
                 - name: LOG_LEVEL
                   value: ${LOG_LEVEL}
-                - name: POSTGRES_HOST
-                  value: ${NAME}-${ZONE}-database
-                - name: POSTGRES_PORT
-                  value: "5432"
-                - name: POSTGRES_DATABASE
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${NAME}-${ZONE}-database
-                      key: database-name
-                - name: POSTGRES_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${NAME}-${ZONE}-database
-                      key: database-user
-                - name: POSTGRES_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: ${NAME}-${ZONE}-database
-                      key: database-password
-                - name: POSTGRES_SCHEMA
-                  value: "users"
+                - name: VAULT_SECRETS_FILE
+                  value: /vault/secrets/app.json
+                - name: VAULT_SECRET_PATH
+                  value: ${VAULT_MOUNT}/${VAULT_SECRET_PATH}
               resources:
                 requests:
                   cpu: ${CPU_REQUEST}
@@ -188,6 +213,9 @@ objects:
               volumeMounts:
                 - name: tmp
                   mountPath: /tmp
+                - name: vault-secrets
+                  mountPath: /vault/secrets
+                  readOnly: true
               startupProbe:
                 httpGet:
                   path: /api/health
@@ -216,6 +244,25 @@ objects:
               emptyDir:
                 medium: Memory
                 sizeLimit: 256Mi
+            - name: vault-config
+              configMap:
+                name: ${NAME}-${ZONE}-${COMPONENT}-vault-agent
+            - name: vault-approle
+              secret:
+                secretName: ${VAULT_APPROLE_SECRET}
+                items:
+                  - key: ${VAULT_ROLE_ID_KEY}
+                    path: ${VAULT_ROLE_ID_KEY}
+                  - key: ${VAULT_SECRET_ID_KEY}
+                    path: ${VAULT_SECRET_ID_KEY}
+            - name: vault-secrets
+              emptyDir:
+                medium: Memory
+                sizeLimit: 8Mi
+            - name: vault-agent
+              emptyDir:
+                medium: Memory
+                sizeLimit: 8Mi
   - apiVersion: v1
     kind: Service
     metadata:
