@@ -51,7 +51,7 @@ parameters:
     value: apps
   - name: VAULT_SECRET_PATH
     description: KV v2 path within the mount, without the "data" segment
-    value: dev/oscar-example/nodejs-sample/proxy-account-ready-only
+    value: data/dev/oscar-example/nodejs-sample/proxy-account-ready-only
   - name: VAULT_APPROLE_SECRET
     description: >-
       Secret holding the AppRole login, pre-provisioned and rotated by the
