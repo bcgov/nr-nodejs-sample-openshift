@@ -82,6 +82,10 @@ objects:
         auto_auth {
           method "approle" {
             mount_path = "${VAULT_AUTH_PATH}"
+            # Cap login/template retry backoff well below the 5m default so a
+            # single transient failure on pod startup doesn't stall readiness.
+            min_backoff = "1s"
+            max_backoff = "10s"
             config = {
               role_id_file_path                   = "/vault/approle/${VAULT_ROLE_ID_KEY}"
               secret_id_file_path                 = "/vault/approle/${VAULT_SECRET_ID_KEY}"

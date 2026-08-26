@@ -10,7 +10,7 @@ on:
         type: string
 
 env:
-  DOMAIN: apps.silver.devops.gov.bc.ca
+  DOMAIN: apps.gold.devops.gov.bc.ca
   PREFIX: ${{ github.event.repository.name }}-${{ inputs.target }}
 
 permissions: {}
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      BASE_URL: https://${{ github.event.repository.name }}-${{ inputs.target }}.apps.silver.devops.gov.bc.ca
+      BASE_URL: https://${{ github.event.repository.name }}-${{ inputs.target }}.apps.gold.devops.gov.bc.ca
     steps:
       - name: Wait for backend health check
         run: |
