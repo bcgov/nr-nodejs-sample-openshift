@@ -10,35 +10,20 @@ on:
         type: string
 
 env:
-  DOMAIN: apps.silver.devops.gov.bc.ca
+  DOMAIN: apps.gold.devops.gov.bc.ca
   PREFIX: ${{ github.event.repository.name }}-${{ inputs.target }}
 
 permissions: {}
 
 jobs:
-  integration-tests:
-    name: Integration
+  smoke-tests:
+    name: Smoke
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
+    env:
+      BASE_URL: https://${{ github.event.repository.name }}-${{ inputs.target }}.apps.gold.devops.gov.bc.ca
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        name: Setup Node
-        with:
-          node-version: 24
-      - id: cache-npm
-        uses: actions/cache@v6
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-cache-node-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-cache-node-modules-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-
       - name: Wait for backend health check
-        env:
-          BASE_URL: https://${{ env.PREFIX }}.${{ env.DOMAIN }}
         run: |
           echo "Waiting for backend health check at ${BASE_URL}/api/health..."
           for i in {1..30}; do
@@ -53,14 +38,19 @@ jobs:
           echo "ERROR: Backend did not become healthy in time."
           exit 1
 
-      - name: Run Integration Tests
-        env:
-          API_NAME: nest
-          BASE_URL: https://${{ env.PREFIX }}.${{ env.DOMAIN }}
+      - name: Hello world endpoint
         run: |
-          cd common/tests/integration
-          npm ci
-          node src/main.js
+          body=$(curl -sf --max-time 10 "${BASE_URL}/api")
+          echo "${body}"
+          [ "${body}" = "Hello World!" ]
+
+      # Confirms the Vault Agent sidecar rendered the secrets file. Values are
+      # never returned by the API, so only metadata is asserted here.
+      - name: Vault secret injection
+        run: |
+          body=$(curl -sf --max-time 10 "${BASE_URL}/api/v1/secrets")
+          echo "${body}"
+          echo "${body}" | jq -e '.available == true and (.secrets | length) > 0'
 
   e2e-tests:
     name: E2E
@@ -97,20 +87,3 @@ jobs:
           name: playwright-report-chromium
           path: "./frontend/playwright-report" # path from current folder
           retention-days: 7
-
-  load-tests:
-    name: Load
-    runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        name: [backend, frontend]
-    steps:
-      - uses: actions/checkout@v7
-      - uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
-      - uses: grafana/run-k6-action@de51a7390bdf0ac85a3bef493691bd71d4c7c158 # v1.4.0
-        env:
-          BACKEND_URL: https://${{ env.PREFIX }}.${{ env.DOMAIN }}/api
-          FRONTEND_URL: https://${{ env.PREFIX }}.${{ env.DOMAIN }}
-        with:
-          path: ./common/tests/load/${{ matrix.name }}-test.js
-          flags: --vus 100 --duration 300s

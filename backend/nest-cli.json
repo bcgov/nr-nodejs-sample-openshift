@@ -4,12 +4,6 @@
   "compilerOptions": {
     "builder": "swc",
     "typeCheck": true,
-    "assets": [
-      {
-        "include": "../generated/prisma/**/*",
-        "outDir": "dist"
-      }
-    ],
     "watchAssets": true
   }
 }

@@ -25,10 +25,10 @@ export async function bootstrap() {
     prefix: 'v',
   })
   const config = new DocumentBuilder()
-    .setTitle('Users example')
-    .setDescription('The user API description')
+    .setTitle('Vault secret injection sample')
+    .setDescription('Hello world API that reports on secrets injected by the Vault Agent sidecar')
     .setVersion('1.0')
-    .addTag('users')
+    .addTag('secrets')
     .build()
 
   const document = SwaggerModule.createDocument(app, config)

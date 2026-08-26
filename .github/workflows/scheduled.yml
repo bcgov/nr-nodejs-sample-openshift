@@ -89,13 +89,6 @@ jobs:
               echo "No PR deployments found for ${{ github.event.repository.name }}"
             fi
 
-  schema-spy:
-    name: SchemaSpy
-    permissions:
-      contents: write
-      pages: write
-    uses: bcgov/quickstart-openshift-helpers/.github/workflows/.schema-spy.yml@a11ad3d1b9288fb40757c4314a62eb86ff227931 # v1.2.1
-
   # Run sequentially to reduce chances of rate limiting
   zap:
     name: ZAP Scans
@@ -109,4 +102,4 @@ jobs:
           allow_issue_writing: true
           issue_title: "ZAP Security Report"
           token: ${{ secrets.GITHUB_TOKEN }}
-          target: https://${{ github.event.repository.name }}-test.apps.silver.devops.gov.bc.ca
+          target: https://${{ github.event.repository.name }}-test.apps.gold.devops.gov.bc.ca

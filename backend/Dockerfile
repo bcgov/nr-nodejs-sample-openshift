@@ -4,7 +4,6 @@ FROM node:24.19.0-slim AS build
 # Copy, build static files; see .dockerignore for exclusions
 WORKDIR /app
 COPY . ./
-ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 RUN npm run deploy
 
 # Dependencies
@@ -13,7 +12,6 @@ FROM node:24.19.0-slim AS dependencies
 # Copy, build static files; see .dockerignore for exclusions
 WORKDIR /app
 COPY . ./
-ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 RUN npm ci --ignore-scripts --no-update-notifier --omit=dev
 
 # Deploy using minimal Distroless image
@@ -23,7 +21,6 @@ ENV NODE_ENV=production
 # Copy app and dependencies
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
-COPY --from=build /app/generated ./generated
 COPY --from=build /app/dist ./dist
 
 # Boilerplate, not used in OpenShift/Kubernetes
@@ -32,4 +29,4 @@ HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/api
 
 # Nonroot user; Node 24 automatically respects cgroup memory limits
 USER nonroot
-CMD ["/app/dist/main"]
+CMD ["/app/dist/src/main.js"]
