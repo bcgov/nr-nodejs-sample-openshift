@@ -50,7 +50,10 @@ parameters:
     description: KV v2 secret engine mount
     value: apps
   - name: VAULT_SECRET_PATH
-    description: KV v2 path within the mount, without the "data" segment
+    description: >-
+      KV v2 path within the mount, without the "data" segment. Overridden per
+      deployment target (test/prod) by the reusable-deploy workflow; defaults
+      to dev otherwise.
     value: dev/oscar-example/nodejs-sample/proxy-account-ready-only
   - name: VAULT_APPROLE_SECRET
     description: >-

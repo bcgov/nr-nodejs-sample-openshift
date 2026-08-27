@@ -47,7 +47,9 @@ jobs:
         include:
           - name: backend
             file: backend/openshift.deploy.yml
+            # test/prod targets map to their own Vault path; PR/dev targets fall back to dev.
             parameters: -p IMAGE_TAG="${{ inputs.tag }}"
+              -p VAULT_SECRET_PATH="${{ (inputs.target == 'test' && 'test' || inputs.target == 'prod' && 'prod' || 'dev') }}/oscar-example/nodejs-sample/proxy-account-ready-only"
           - name: frontend
             file: frontend/openshift.deploy.yml
             parameters: -p IMAGE_TAG="${{ inputs.tag }}"
