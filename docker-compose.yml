@@ -1,5 +1,4 @@
-# Local development stands in for the Vault Agent sidecar by mounting
-# ./dev/sample-secrets.json where the agent would render /vault/secrets/app.json.
+# Backend logs in to Vault with AppRole; export VAULT_ROLE_ID and VAULT_SECRET_ID before `up`.
 x-var:
   - &node-image node:22
 
@@ -9,8 +8,16 @@ services:
     entrypoint: sh -c "npm i && npm run start:dev"
     environment:
       NODE_ENV: development
-      VAULT_SECRETS_FILE: /vault/secrets/app.json
-      VAULT_SECRET_PATH: apps/dev/oscar-example/nodejs-sample/sample
+      VAULT_ADDR: https://knox.io.nrs.gov.bc.ca
+      VAULT_AUTH_PATH: auth/vs_apps_approle
+      VAULT_MOUNT: apps
+      VAULT_SECRET_PATH: dev/oscar-example/nodejs-sample/proxy-account-ready-only
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID:-}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID:-}
+      BROKER_BASE_URL: https://broker.io.nrs.gov.bc.ca
+      BROKER_PROJECT_NAME: oscar-example
+      BROKER_SERVICE_NAME: nodejs-sample
+      BROKER_ENVIRONMENT: development
     image: *node-image
     ports: ["3001:3000"]
     healthcheck:
@@ -19,7 +26,6 @@ services:
     volumes:
       - "./backend:/app"
       - "/app/node_modules"
-      - "./dev/sample-secrets.json:/vault/secrets/app.json:ro"
 
   frontend:
     container_name: frontend

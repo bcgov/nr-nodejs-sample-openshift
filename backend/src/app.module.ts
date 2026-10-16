@@ -3,14 +3,14 @@ import type { MiddlewareConsumer } from '@nestjs/common'
 import { Module, RequestMethod } from '@nestjs/common'
 import { HTTPLoggerMiddleware } from './middleware/req.res.logger'
 import { ConfigModule } from '@nestjs/config'
-import { SecretsModule } from './secrets/secrets.module'
+import { IntentionModule } from './intention/intention.module'
 import { AppService } from './app.service'
 import { AppController } from './app.controller'
 import { MetricsController } from './metrics.controller'
 import { HealthController } from './health.controller'
 
 @Module({
-  imports: [ConfigModule.forRoot(), SecretsModule],
+  imports: [ConfigModule.forRoot(), IntentionModule],
   controllers: [AppController, MetricsController, HealthController],
   providers: [AppService],
 })

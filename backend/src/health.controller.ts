@@ -4,8 +4,7 @@ import { Controller, Get } from '@nestjs/common'
 export class HealthController {
   @Get()
   check() {
-    // Intentionally independent of Vault: a render failure should show up on
-    // /api/v1/secrets rather than silently pulling the pod out of rotation.
+    // Intentionally independent of Vault so a Vault outage doesn't pull the pod out of rotation.
     return { status: 'ok', uptime: process.uptime() }
   }
 }

@@ -24,7 +24,7 @@ jobs:
       pull-requests: read
     outputs:
       pr: ${{ steps.pr.outputs.pr }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       # Get PR number for squash merges to main
       - id: pr
@@ -67,7 +67,7 @@ jobs:
   monitor-prod:
     name: Sysdig Monitor (PROD)
     needs: [deploy-prod]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     environment: prod
     permissions:
       contents: read

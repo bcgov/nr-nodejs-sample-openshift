@@ -12,12 +12,11 @@ describe('Dashboard', () => {
     expect(await screen.findByRole('heading', { name: 'Hello World!' })).toBeInTheDocument()
   })
 
-  test('renders metadata for the injected secrets', async () => {
+  test('renders the latest package installation intention', async () => {
     render(<Dashboard />)
 
-    expect(await screen.findByText('Secret Key')).toBeInTheDocument()
-    expect(await screen.findByText('SAMPLE_API_KEY')).toBeInTheDocument()
-    expect(screen.getByText('a1b2c3d4')).toBeInTheDocument()
-    expect(screen.getByText('apps/dev/oscar-example/nodejs-sample/sample')).toBeInTheDocument()
+    expect(await screen.findByText('intention-123')).toBeInTheDocument()
+    expect(screen.getByText('1.2.3')).toBeInTheDocument()
+    expect(screen.getByText('success')).toBeInTheDocument()
   })
 })

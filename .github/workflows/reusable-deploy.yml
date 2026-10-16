@@ -39,7 +39,7 @@ jobs:
   deploy:
     name: Deploy (${{ matrix.name }})
     environment: ${{ inputs.environment }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       matrix:

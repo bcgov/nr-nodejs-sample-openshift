@@ -1,13 +1,14 @@
 import type { FC } from 'react'
 import type { AxiosResponse } from '~/axios'
-import type { SecretsStatusDto } from '@/interfaces/SecretsDto'
+import type { IntentionSearchResultDto } from '@/interfaces/IntentionDto'
 import { useEffect, useState } from 'react'
-import { Table, Alert, Badge } from 'react-bootstrap'
+import { Table, Alert } from 'react-bootstrap'
 import apiService from '@/service/api-service'
 
 const Dashboard: FC = () => {
   const [greeting, setGreeting] = useState<string>('')
-  const [status, setStatus] = useState<SecretsStatusDto | undefined>(undefined)
+  const [intention, setIntention] = useState<IntentionSearchResultDto | undefined>(undefined)
+  const [intentionError, setIntentionError] = useState<boolean>(false)
 
   useEffect(() => {
     apiService
@@ -18,53 +19,59 @@ const Dashboard: FC = () => {
 
     apiService
       .getAxiosInstance()
-      .get('/v1/secrets')
-      .then((response: AxiosResponse<SecretsStatusDto>) => setStatus(response.data))
-      .catch((error) => console.error(error))
+      .get('/v1/intention')
+      .then((response?: AxiosResponse<IntentionSearchResultDto>) => {
+        if (response?.data) setIntention(response.data)
+        else setIntentionError(true)
+      })
+      .catch(() => setIntentionError(true))
   }, [])
 
   return (
     <div className="min-vh-45 mh-45 mw-75 ml-4">
       <h2>{greeting}</h2>
       <p>
-        Secrets below are rendered into the pod by the Vault Agent sidecar, which logs in with the
-        AppRole <code>role_id</code>/<code>secret_id</code> provisioned by the NR Broker cron job.
-        Only metadata is exposed &mdash; values never leave the pod.
+        The backend logs in to Vault with the AppRole <code>role_id</code>/<code>secret_id</code>{' '}
+        provisioned by the NR Broker cron job, reads the API token, and queries NR Broker. The token
+        never leaves the backend.
       </p>
 
-      {status && !status.available && (
-        <Alert variant="warning">
-          No secrets rendered yet at <code>{status.file}</code>. Check the vault-agent sidecar logs.
+      <h3 className="mt-4">Latest Package Installation</h3>
+      {intentionError && (
+        <Alert variant="warning">Unable to load intention data from the API.</Alert>
+      )}
+      {intention && !intention.latest && (
+        <Alert variant="info">
+          No package-installation intentions found for <code>{intention.environment}</code>.
         </Alert>
       )}
-
-      {status?.available && (
-        <>
-          <p>
-            <Badge bg="secondary">{status.vaultPath}</Badge>{' '}
-            <small>rendered at {status.renderedAt}</small>
-          </p>
-          <Table striped bordered hover>
-            <thead>
-              <tr>
-                <th>Secret Key</th>
-                <th>Value Length</th>
-                <th>Fingerprint (SHA-256)</th>
+      {intention?.latest && (
+        <Table striped bordered hover>
+          <tbody>
+            {(
+              [
+                ['Intention ID', intention.latest.id],
+                ['Project', intention.latest.project],
+                ['Service', intention.latest.service],
+                ['Environment', intention.latest.environment],
+                ['Package', intention.latest.packageName],
+                ['Version', intention.latest.packageVersion],
+                ['Build Version', intention.latest.buildVersion],
+                ['Outcome', intention.latest.outcome],
+                ['Start', intention.latest.start],
+                ['End', intention.latest.end],
+                ['User', intention.latest.user],
+                ['Reason', intention.latest.eventReason],
+                ['Event URL', intention.latest.eventUrl],
+              ] as const
+            ).map(([label, value]) => (
+              <tr key={label}>
+                <th>{label}</th>
+                <td>{value ?? '-'}</td>
               </tr>
-            </thead>
-            <tbody>
-              {status.secrets.map((secret) => (
-                <tr key={secret.key}>
-                  <td>{secret.key}</td>
-                  <td>{secret.length}</td>
-                  <td>
-                    <code>{secret.fingerprint}</code>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </>
+            ))}
+          </tbody>
+        </Table>
       )}
     </div>
   )

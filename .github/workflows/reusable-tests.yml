@@ -18,7 +18,7 @@ permissions: {}
 jobs:
   smoke-tests:
     name: Smoke
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       BASE_URL: https://${{ github.event.repository.name }}-${{ inputs.target }}.apps.gold.devops.gov.bc.ca
@@ -44,20 +44,19 @@ jobs:
           echo "${body}"
           [ "${body}" = "Hello World!" ]
 
-      # Confirms the Vault Agent sidecar rendered the secrets file. Values are
-      # never returned by the API, so only metadata is asserted here.
-      - name: Vault secret injection
+      # Confirms the backend can log in to Vault and call the Broker API with the apitoken.
+      - name: Intention search via Vault token
         run: |
-          body=$(curl -sf --max-time 10 "${BASE_URL}/api/v1/secrets")
+          body=$(curl -sf --max-time 20 "${BASE_URL}/api/v1/intention")
           echo "${body}"
-          echo "${body}" | jq -e '.available == true and (.secrets | length) > 0'
+          echo "${body}" | jq -e 'has("latest")'
 
   e2e-tests:
     name: E2E
     defaults:
       run:
         working-directory: frontend
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
