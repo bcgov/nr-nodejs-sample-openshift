@@ -4,7 +4,9 @@ import { IntentionService } from './intention.service'
 
 describe('IntentionService', () => {
     const secrets = (token?: string) =>
-        ({ getSecret: vi.fn().mockResolvedValue(token) }) as unknown as VaultService
+        ({
+            getSecrets: vi.fn().mockResolvedValue(token ? { API_TOKEN: token } : {}),
+        }) as unknown as VaultService
 
     beforeAll(() => {
         process.env.BROKER_BASE_URL = 'https://broker.example/api/'

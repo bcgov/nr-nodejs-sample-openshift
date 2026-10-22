@@ -22,6 +22,13 @@ export class VaultService {
         return typeof value === 'string' && value.length > 0 ? value : undefined
     }
 
+    async getSecrets(): Promise<Record<string, string>> {
+        const data = await this.read()
+        return Object.fromEntries(
+            Object.entries(data).filter(([, v]) => typeof v === 'string') as [string, string][],
+        )
+    }
+
     private async read(): Promise<Record<string, unknown>> {
         const url = `${this.addr}/v1/${this.mount}/data/${this.secretPath}`
         let response = await this.request(url, { headers: { 'X-Vault-Token': await this.login() } })

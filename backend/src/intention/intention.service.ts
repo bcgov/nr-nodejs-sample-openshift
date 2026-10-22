@@ -18,15 +18,16 @@ export class IntentionService {
     private readonly projectName = process.env.BROKER_PROJECT_NAME ?? ''
     private readonly serviceName = process.env.BROKER_SERVICE_NAME ?? ''
     private readonly environment = process.env.BROKER_ENVIRONMENT ?? 'development'
-    private readonly tokenKey = process.env.BROKER_TOKEN_KEY ?? 'apitoken'
+    private readonly tokenKey = 'API_TOKEN'
 
     constructor(private readonly vault: VaultService) { }
 
     async searchLatestInstall(): Promise<IntentionSearchResultDto> {
-        const apitoken = await this.vault.getSecret(this.tokenKey).catch((error: Error) => {
+        const secrets = await this.vault.getSecrets().catch((error: Error) => {
             this.logger.warn(error.message)
-            return undefined
+            return {} as Record<string, string>
         })
+        const apitoken = secrets[this.tokenKey]
         if (!apitoken) {
             throw new ServiceUnavailableException(`Vault secret "${this.tokenKey}" is not available`)
         }

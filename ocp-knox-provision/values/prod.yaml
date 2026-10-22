@@ -1,0 +1,7 @@
+intention:
+  service:
+    name: nodejs-sample
+    project: oscar-example
+    environment: production
+  user:
+    name: gruan@azureidir

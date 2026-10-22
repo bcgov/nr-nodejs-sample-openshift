@@ -48,7 +48,7 @@ parameters:
     value: apps
   - name: VAULT_SECRET_PATH
     description: KV v2 path within the mount, without the "data" segment
-    value: dev/oscar-example/nodejs-sample/proxy-account-ready-only
+    value: dev/oscar-example/nodejs-sample/development
   - name: VAULT_APPROLE_SECRET
     description: >-
       Secret holding the AppRole login, pre-provisioned and rotated by the
@@ -70,9 +70,6 @@ parameters:
   - name: BROKER_ENVIRONMENT
     description: Value for actions.service.environment in the intention search
     value: development
-  - name: BROKER_TOKEN_KEY
-    description: Key within the Vault secret that holds the API token
-    value: apitoken
 objects:
   - apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
@@ -159,8 +156,6 @@ objects:
                   value: ${BROKER_SERVICE_NAME}
                 - name: BROKER_ENVIRONMENT
                   value: ${BROKER_ENVIRONMENT}
-                - name: BROKER_TOKEN_KEY
-                  value: ${BROKER_TOKEN_KEY}
               resources:
                 requests:
                   cpu: ${CPU_REQUEST}

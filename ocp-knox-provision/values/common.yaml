@@ -1,0 +1,9 @@
+cron:
+  schedule: 0 2 * * *
+sourceSecret:
+  name: knox-secret
+targetSecret:
+  name: knox-secret
+sync:
+  enabled: false
+  schedule: ""
