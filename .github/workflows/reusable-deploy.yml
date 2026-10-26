@@ -47,7 +47,10 @@ jobs:
         include:
           - name: backend
             file: backend/openshift.deploy.yml
+            # PR zones keep the template defaults (dev path)
             parameters: -p IMAGE_TAG="${{ inputs.tag }}"
+              ${{ inputs.target == 'test' && '-p VAULT_SECRET_PATH=test/oscar-example/nodejs-sample/test -p BROKER_ENVIRONMENT=test' || '' }}
+              ${{ inputs.target == 'prod' && '-p VAULT_SECRET_PATH=prod/oscar-example/nodejs-sample/production -p BROKER_ENVIRONMENT=production' || '' }}
           - name: frontend
             file: frontend/openshift.deploy.yml
             parameters: -p IMAGE_TAG="${{ inputs.tag }}"
