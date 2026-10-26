@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+spec:
+  system: oscar-example
+metadata:
+  name: nodejs-sample
+  annotations:
+    playbook.io.nrs.gov.bc.ca/intentionUser: gruan@azureidir
+    playbook.io.nrs.gov.bc.ca/knoxProvisionCronSchedule: 0 2 * * *
+    playbook.io.nrs.gov.bc.ca/knoxProvisionSourceSecretName: knox-secret
+    playbook.io.nrs.gov.bc.ca/knoxProvisionTargetSecretName: knox-secret
+    playbook.io.nrs.gov.bc.ca/syncSecretEnabled: false
+    composer.io.nrs.gov.bc.ca/generators: ocp-knox-provision

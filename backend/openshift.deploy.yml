@@ -37,9 +37,6 @@ parameters:
   - name: LOG_LEVEL
     description: Application log level (debug|info|warn|error)
     value: "info"
-  - name: VAULT_IMAGE
-    description: Image providing the Vault Agent binary
-    value: docker.io/hashicorp/vault:2.0.4
   - name: VAULT_ADDR
     description: Vault (Knox) API address
     value: https://knox.io.nrs.gov.bc.ca
@@ -51,7 +48,7 @@ parameters:
     value: apps
   - name: VAULT_SECRET_PATH
     description: KV v2 path within the mount, without the "data" segment
-    value: dev/oscar-example/nodejs-sample/proxy-account-ready-only
+    value: dev/oscar-example/nodejs-sample/development
   - name: VAULT_APPROLE_SECRET
     description: >-
       Secret holding the AppRole login, pre-provisioned and rotated by the
@@ -61,50 +58,19 @@ parameters:
     value: role_id
   - name: VAULT_SECRET_ID_KEY
     value: secret_id
+  - name: BROKER_BASE_URL
+    description: NR Broker base URL; the app appends /v1/intention/search
+    value: https://broker.io.nrs.gov.bc.ca
+  - name: BROKER_PROJECT_NAME
+    description: Value for actions.service.project in the intention search
+    value: oscar-example
+  - name: BROKER_SERVICE_NAME
+    description: Value for actions.service.name in the intention search
+    value: nodejs-sample
+  - name: BROKER_ENVIRONMENT
+    description: Value for actions.service.environment in the intention search
+    value: development
 objects:
-  - apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      labels:
-        app: ${NAME}-${ZONE}
-      name: ${NAME}-${ZONE}-${COMPONENT}-vault-agent
-    data:
-      agent.hcl: |-
-        pid_file = "/vault/agent/pid"
-
-        vault {
-          address = "${VAULT_ADDR}"
-          retry {
-            num_retries = 5
-          }
-        }
-
-        auto_auth {
-          method "approle" {
-            mount_path = "${VAULT_AUTH_PATH}"
-            # Cap login/template retry backoff well below the 5m default so a
-            # single transient failure on pod startup doesn't stall readiness.
-            min_backoff = "1s"
-            max_backoff = "10s"
-            config = {
-              role_id_file_path                   = "/vault/approle/${VAULT_ROLE_ID_KEY}"
-              secret_id_file_path                 = "/vault/approle/${VAULT_SECRET_ID_KEY}"
-              remove_secret_id_file_after_reading = false
-            }
-          }
-
-          # No token sink: the app only ever sees rendered secrets, not a token.
-        }
-
-        template {
-          destination = "/vault/secrets/app.json"
-          perms       = "0400"
-          contents    = <<-EOT
-            {{- with secret "${VAULT_MOUNT}/data/${VAULT_SECRET_PATH}" -}}
-            {{ .Data.data | toJSON }}
-            {{- end -}}
-          EOT
-        }
   - apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
     metadata:
@@ -155,38 +121,6 @@ objects:
                         deployment: ${NAME}-${ZONE}-${COMPONENT}
                     topologyKey: kubernetes.io/hostname
           containers:
-            - name: vault-agent
-              image: ${VAULT_IMAGE}
-              imagePullPolicy: IfNotPresent
-              command: ["vault", "agent", "-config=/vault/config/agent.hcl"]
-              env:
-                - name: HOME
-                  value: /vault/agent
-                - name: VAULT_ADDR
-                  value: ${VAULT_ADDR}
-              resources:
-                requests:
-                  cpu: 10m
-                  memory: 64Mi
-              securityContext:
-                allowPrivilegeEscalation: false
-                runAsNonRoot: true
-                readOnlyRootFilesystem: true
-                capabilities:
-                  drop: ["ALL"]
-                seccompProfile:
-                  type: RuntimeDefault
-              volumeMounts:
-                - name: vault-config
-                  mountPath: /vault/config
-                  readOnly: true
-                - name: vault-approle
-                  mountPath: /vault/approle
-                  readOnly: true
-                - name: vault-secrets
-                  mountPath: /vault/secrets
-                - name: vault-agent
-                  mountPath: /vault/agent
             - name: ${NAME}
               image: ${REGISTRY}/${ORG_NAME}/${NAME}/${COMPONENT}:${IMAGE_TAG}
               imagePullPolicy: Always
@@ -196,10 +130,32 @@ objects:
               env:
                 - name: LOG_LEVEL
                   value: ${LOG_LEVEL}
-                - name: VAULT_SECRETS_FILE
-                  value: /vault/secrets/app.json
+                - name: VAULT_ADDR
+                  value: ${VAULT_ADDR}
+                - name: VAULT_AUTH_PATH
+                  value: ${VAULT_AUTH_PATH}
+                - name: VAULT_MOUNT
+                  value: ${VAULT_MOUNT}
                 - name: VAULT_SECRET_PATH
-                  value: ${VAULT_MOUNT}/${VAULT_SECRET_PATH}
+                  value: ${VAULT_SECRET_PATH}
+                - name: VAULT_ROLE_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${VAULT_APPROLE_SECRET}
+                      key: ${VAULT_ROLE_ID_KEY}
+                - name: VAULT_SECRET_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${VAULT_APPROLE_SECRET}
+                      key: ${VAULT_SECRET_ID_KEY}
+                - name: BROKER_BASE_URL
+                  value: ${BROKER_BASE_URL}
+                - name: BROKER_PROJECT_NAME
+                  value: ${BROKER_PROJECT_NAME}
+                - name: BROKER_SERVICE_NAME
+                  value: ${BROKER_SERVICE_NAME}
+                - name: BROKER_ENVIRONMENT
+                  value: ${BROKER_ENVIRONMENT}
               resources:
                 requests:
                   cpu: ${CPU_REQUEST}
@@ -217,9 +173,6 @@ objects:
               volumeMounts:
                 - name: tmp
                   mountPath: /tmp
-                - name: vault-secrets
-                  mountPath: /vault/secrets
-                  readOnly: true
               startupProbe:
                 httpGet:
                   path: /api/health
@@ -248,25 +201,6 @@ objects:
               emptyDir:
                 medium: Memory
                 sizeLimit: 256Mi
-            - name: vault-config
-              configMap:
-                name: ${NAME}-${ZONE}-${COMPONENT}-vault-agent
-            - name: vault-approle
-              secret:
-                secretName: ${VAULT_APPROLE_SECRET}
-                items:
-                  - key: ${VAULT_ROLE_ID_KEY}
-                    path: ${VAULT_ROLE_ID_KEY}
-                  - key: ${VAULT_SECRET_ID_KEY}
-                    path: ${VAULT_SECRET_ID_KEY}
-            - name: vault-secrets
-              emptyDir:
-                medium: Memory
-                sizeLimit: 8Mi
-            - name: vault-agent
-              emptyDir:
-                medium: Memory
-                sizeLimit: 8Mi
   - apiVersion: v1
     kind: Service
     metadata:
