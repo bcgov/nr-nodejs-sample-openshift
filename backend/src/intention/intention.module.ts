@@ -4,8 +4,8 @@ import { IntentionController } from './intention.controller'
 import { IntentionService } from './intention.service'
 
 @Module({
-    imports: [VaultModule],
-    controllers: [IntentionController],
-    providers: [IntentionService],
+  imports: [VaultModule],
+  controllers: [IntentionController],
+  providers: [IntentionService],
 })
-export class IntentionModule { }
+export class IntentionModule {}
